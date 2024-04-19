@@ -26,7 +26,7 @@ __version__ = "0.9.9"
 subprocesses = []
 
 
-class myWSGIRequestHandler(WSGIRequestHandler):
+class MainWSGIRequestHandler(WSGIRequestHandler):
     def log_date_time_string(self):
         """Return the current time formatted for logging."""
         now = time.time()
@@ -82,7 +82,7 @@ class myWSGIRequestHandler(WSGIRequestHandler):
             f"[{self.log_date_time_string()}] {message % args}")
 
 
-class WrappingApp(object):
+class WrappingApp:
     """simple wrapping app"""
 
     def __init__(self, config):
@@ -98,7 +98,7 @@ class WrappingApp(object):
         return self.wsgi_app(environ, start_response)
 
 
-class myProxy(ProxyMiddleware):
+class Proxy(ProxyMiddleware):
     """this addition allows to redirect all routes to given targets"""
 
     def __init__(self, app, targets, chunk_size=2 << 13, timeout=10):
@@ -127,7 +127,7 @@ class myProxy(ProxyMiddleware):
         return app(environ, start_response)
 
 
-class myDispatcher(DispatcherMiddleware):
+class Dispatcher(DispatcherMiddleware):
     """use regex to find a matching route"""
 
     def __call__(self, environ, start_response):
@@ -140,7 +140,7 @@ class myDispatcher(DispatcherMiddleware):
         return app(environ, start_response)
 
 
-class mySharedData(SharedDataMiddleware):
+class SharedData(SharedDataMiddleware):
     """use regex to find a matching files"""
 
     def __init__(
@@ -186,8 +186,7 @@ class mySharedData(SharedDataMiddleware):
                 if file_loader is not None:
                     break
 
-        if file_loader is None or not self.is_allowed(
-            real_filename):  # type: ignore
+        if file_loader is None or not self.is_allowed(real_filename):  # noqa
             return self.app(environ, start_response)
 
         guessed_type = mimetypes.guess_type(real_filename)  # type: ignore
@@ -248,22 +247,23 @@ def start_server(host, port, gunicorn_port, appFolder, appYaml, timeout,
             continue  # skip
 
         # print(pattern, route["url"], path)
-        apps[pattern] = mySharedData(app.wsgi_app, {
-            route["url"]: os.path.join(appFolder, path)})
+        apps[pattern] = SharedData(
+            app.wsgi_app, {route["url"]: os.path.join(appFolder, path)}
+        )
 
-    apps.update({"/": myProxy(app.wsgi_app, {
+    apps.update({"/": Proxy(app.wsgi_app, {
         "/": {
             "target": f"{protocol}://{host}:{gunicorn_port}/",
             "host": None
         }
     }, timeout=timeout)})
-    app.wsgi_app = myDispatcher(app.wsgi_app, apps)
+    app.wsgi_app = Dispatcher(app.wsgi_app, apps)
 
     run_simple(host, port, app, use_debugger=False, use_reloader=True,
-               threaded=True, request_handler=myWSGIRequestHandler)
+               threaded=True, request_handler=MainWSGIRequestHandler)
 
 
-def envVars(application_id: str, args: argparse.Namespace, app_yaml: dict):
+def set_env_vars(application_id: str, args: argparse.Namespace, app_yaml: dict):
     """set necessary environment variables"""
     # First, merge the app.yaml into the environment so that the variables
     # from the CLI can overwrite it.
@@ -280,8 +280,8 @@ def envVars(application_id: str, args: argparse.Namespace, app_yaml: dict):
     os.environ["GRPC_ENABLE_FORK_SUPPORT"] = "0"
 
     if args.storage:
-        os.environ[
-            "STORAGE_EMULATOR_HOST"] = f"http://{args.host}:{args.storage_port}"
+        os.environ["STORAGE_EMULATOR_HOST"] = \
+            f"http://{args.host}:{args.storage_port}"
 
     if args.tasks:
         os.environ["TASKS_EMULATOR"] = f"{args.host}:{args.tasks_port}"
@@ -345,7 +345,8 @@ def main():
     start wrapping app
     """
     ap = argparse.ArgumentParser(
-        description="alternative dev_appserver"
+        description="alternative dev_appserver",
+        epilog=f"Version: {__version__}"
     )
 
     ap.add_argument("config_paths", metavar='yaml_path', nargs='+',
@@ -395,42 +396,46 @@ def main():
 
     args = ap.parse_args()
 
-    appFolder = os.path.abspath(args.config_paths[0])
+    app_folder = os.path.abspath(args.config_paths[0])
 
     # load & parse the app.yaml
-    with open(os.path.join(appFolder, "app.yaml"), "r") as f:
-        appYaml = yaml.load(f, Loader=yaml.Loader)
+    with open(os.path.join(app_folder, "app.yaml"), "r") as f:
+        app_yaml = yaml.load(f, Loader=yaml.Loader)
 
-    envVars(args.app_id, args, appYaml)
+    set_env_vars(args.app_id, args, app_yaml)
     patch_gunicorn()
 
     # Check for correct runtime
-    myRuntime = f"python{sys.version_info.major}{sys.version_info.minor}"
-    appRuntime = appYaml["runtime"]
-    assert appRuntime == myRuntime, f"app.yaml specifies {appRuntime} but you're on {myRuntime}, please correct this."
+    current_runtime = f"python{sys.version_info.major}{sys.version_info.minor}"
+    app_runtime = app_yaml["runtime"]
+    assert app_runtime == current_runtime, f"app.yaml specifies {app_runtime} but you're on {current_runtime}, please correct this."
 
     if "WERKZEUG_RUN_MAIN" in os.environ and os.environ["WERKZEUG_RUN_MAIN"]:
         # only start subprocesses wenn reloader starts
 
         if args.storage:
             storage_subprocess = subprocess.Popen(
-                f"gcloud-storage-emulator start --port={args.storage_port} --default-bucket={args.app_id}.appspot.com".split())
+                f"gcloud-storage-emulator start --port={args.storage_port}"
+                f" --default-bucket={args.app_id}.appspot.com".split())
 
             subprocesses.append(storage_subprocess)
 
-        if args.tasks and os.path.exists(os.path.join(appFolder, 'queue.yaml')):
+        if args.tasks and os.path.exists(os.path.join(app_folder, 'queue.yaml')):
             cron = ""
             if args.cron:
-                cron = f"--cron-yaml={os.path.join(appFolder, 'cron.yaml')}"
+                cron = f"--cron-yaml={os.path.join(app_folder, 'cron.yaml')}"
 
             tasks_subprocess = subprocess.Popen(
-                f"gcloud-tasks-emulator start -p={args.tasks_port} -t={args.port} {cron} --queue-yaml={os.path.join(appFolder, 'queue.yaml')} --queue-yaml-project={args.app_id} --queue-yaml-location=local -r 50".split())
+                f"gcloud-tasks-emulator start -p={args.tasks_port} -t={args.port} {cron}"
+                f" --queue-yaml={os.path.join(app_folder, 'queue.yaml')}"
+                f" --queue-yaml-project={args.app_id} --queue-yaml-location=local -r 50".split())
 
             subprocesses.append(tasks_subprocess)
 
-        start_gunicorn(args, appYaml, appFolder)
+        start_gunicorn(args, app_yaml, app_folder)
 
-    start_server(args.host, args.port, args.gunicorn_port, appFolder, appYaml, args.timeout)
+    start_server(args.host, args.port, args.gunicorn_port, app_folder, app_yaml,
+                 args.timeout)
 
     try:
         for process in subprocesses:

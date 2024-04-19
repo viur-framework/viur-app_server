@@ -35,9 +35,11 @@ class MainWSGIRequestHandler(WSGIRequestHandler):
             year, month, day, hh, mm, ss)
         return s
 
-    def log_request(self, code: t.Union[int, str] = "-",
-                    size: t.Union[int, str] = "-") -> None:
-
+    def log_request(
+        self,
+        code: t.Union[int, str] = "-",
+        size: t.Union[int, str] = "-",
+    ) -> None:
         """coloring the status code"""
         try:
             path = uri_to_iri(self.path)
@@ -229,14 +231,21 @@ class SharedData(SharedDataMiddleware):
         return wrap_file(environ, f)
 
 
-def start_server(host, port, gunicorn_port, appFolder, appYaml, timeout,
-                 protocol="http"):
+def start_server(
+    host: str,
+    port: int,
+    gunicorn_port: int,
+    app_folder: str,
+    app_yaml: dict,
+    timeout: int,
+    protocol: str = "http",
+) -> None:
     """use the dispatcherMiddleware to connect SharedDataMiddleware and ProxyMiddleware with the wrapping app."""
     app = WrappingApp({})
     apps = {}
 
     # make shared middlewares for static files as configured in app.yaml
-    for route in appYaml["handlers"]:
+    for route in app_yaml["handlers"]:
         if path := route.get("static_dir"):
             pattern = route["url"] + "/.*"
 
@@ -248,15 +257,15 @@ def start_server(host, port, gunicorn_port, appFolder, appYaml, timeout,
 
         # print(pattern, route["url"], path)
         apps[pattern] = SharedData(
-            app.wsgi_app, {route["url"]: os.path.join(appFolder, path)}
+            app.wsgi_app, {route["url"]: os.path.join(app_folder, path)}
         )
 
-    apps.update({"/": Proxy(app.wsgi_app, {
+    apps["/"] = Proxy(app.wsgi_app, {
         "/": {
             "target": f"{protocol}://{host}:{gunicorn_port}/",
             "host": None
         }
-    }, timeout=timeout)})
+    }, timeout=timeout)
     app.wsgi_app = Dispatcher(app.wsgi_app, apps)
 
     run_simple(host, port, app, use_debugger=False, use_reloader=True,
@@ -420,7 +429,8 @@ def main():
 
             subprocesses.append(storage_subprocess)
 
-        if args.tasks and os.path.exists(os.path.join(app_folder, 'queue.yaml')):
+        if args.tasks and os.path.exists(
+            os.path.join(app_folder, 'queue.yaml')):
             cron = ""
             if args.cron:
                 cron = f"--cron-yaml={os.path.join(app_folder, 'cron.yaml')}"

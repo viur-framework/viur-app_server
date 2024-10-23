@@ -2,6 +2,7 @@ import argparse
 import logging
 import mimetypes
 import os
+from pathlib import Path
 import re
 import subprocess
 import sys
@@ -358,8 +359,9 @@ def main():
         epilog=f"Version: {__version__}"
     )
 
-    ap.add_argument("config_paths", metavar='yaml_path', nargs='+',
-                    help='Path to app.yaml file')
+    ap.add_argument("distribution_folder", help="Path of the application")
+    ap.add_argument("--appyaml", default="app.yaml",
+                    help="Path to app.yaml file (relative to the distribution_folder)")
     ap.add_argument(
         '-A', '--application', action='store', dest='app_id', required=True,
         help='Set the application id')
@@ -405,10 +407,10 @@ def main():
 
     args = ap.parse_args()
 
-    app_folder = os.path.abspath(args.config_paths[0])
+    app_folder = Path(args.distribution_folder)
 
     # load & parse the app.yaml
-    with open(os.path.join(app_folder, "app.yaml"), "r") as f:
+    with open(app_folder / args.appyaml, "r") as f:
         app_yaml = yaml.load(f, Loader=yaml.Loader)
 
     set_env_vars(args.app_id, args, app_yaml)

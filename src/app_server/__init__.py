@@ -22,7 +22,7 @@ from werkzeug.utils import get_content_type
 from werkzeug.wrappers import Request, Response
 from werkzeug.wsgi import get_path_info, wrap_file
 
-__version__ = "0.9.10"
+__version__ = "0.9.11"
 
 subprocesses = []
 

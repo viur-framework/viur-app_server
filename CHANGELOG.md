@@ -1,17 +1,20 @@
 # Changelog
 
 This file documents any relevant changes.
-## [0.9.10] - 2024-05.06
+## [0.9.11] - 2024-10-30
+feat: Allow different named app.yamls #8
+
+## [0.9.10] - 2024-05-06
 - fix: Improve and refactor entrypoint to make --workers and --threads argument working #7
 
-## [0.9.9] - 2024-01.18
+## [0.9.9] - 2024-01-18
 - feat: added support timeout parameter
 - refactor: Change pip version from exact to minimum conditions
 
-## [0.9.8] - 2023-11.22
+## [0.9.8] - 2023-11-22
 - feat: added support for custom environment variables
 
-## [0.9.7] - 2023-10.27
+## [0.9.7] - 2023-10-27
 - fix: readded subdomain support
 - feat: added editorconf
 

@@ -2,8 +2,6 @@ import typing as t
 from wsgiref.types import StartResponse, WSGIEnvironment
 
 from werkzeug.wrappers import Request, Response
-
-
 class AppWrapper:
     """simple wrapping app"""
 

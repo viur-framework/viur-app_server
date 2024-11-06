@@ -17,6 +17,7 @@ def patch_gunicorn():
             '        except (SyntaxError, NameError) as e:'
         ))
 
+
 def set_env_vars(application_id: str, args: argparse.Namespace, app_yaml: dict):
     """set necessary environment variables"""
     # First, merge the app.yaml into the environment so that the variables

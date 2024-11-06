@@ -49,12 +49,16 @@ def start_server(
             app.wsgi_app, {route["url"]: os.path.join(app_folder, path)}
         )
 
-    apps["/"] = Proxy(app.wsgi_app, {
-        "/": {
-            "target": f"{protocol}://{host}:{gunicorn_port}/",
-            "host": None
-        }
-    }, timeout=timeout)
+    apps["/"] = Proxy(
+        app.wsgi_app,
+        {
+            "/": {
+                "target": f"{protocol}://{host}:{gunicorn_port}/",
+                "host": None
+            }
+        },
+        timeout=timeout
+    )
     app.wsgi_app = Dispatcher(app.wsgi_app, apps)
 
     run_simple(host, port, app, use_debugger=False, use_reloader=True,

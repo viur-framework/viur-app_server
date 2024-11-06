@@ -2,7 +2,7 @@ import time
 import typing as t
 
 from werkzeug._internal import _logger  # noqa
-from werkzeug.serving import WSGIRequestHandler , _ansi_style, \
+from werkzeug.serving import WSGIRequestHandler, _ansi_style, \
     _log_add_style
 from werkzeug.urls import uri_to_iri
 
@@ -10,7 +10,8 @@ import logging
 
 
 class CustomWSGIRequestHandler(WSGIRequestHandler):
-    def log_date_time_string(self):
+    @staticmethod
+    def log_date_time_string():
         """Return the current time formatted for logging."""
         now = time.time()
         year, month, day, hh, mm, ss, x, y, z = time.localtime(now)

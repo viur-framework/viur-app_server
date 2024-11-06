@@ -1,6 +1,9 @@
+import mimetypes
 import re
 import time
-import mimetypes
+import typing as t
+from wsgiref.types import StartResponse, WSGIApplication, WSGIEnvironment
+
 from werkzeug.http import http_date, is_resource_modified
 from werkzeug.middleware.shared_data import SharedDataMiddleware
 from werkzeug.utils import get_content_type
@@ -12,18 +15,24 @@ class SharedData(SharedDataMiddleware):
 
     def __init__(
         self,
-        app,
-        exports,
+        app: WSGIApplication,
+        exports: (
+            dict[str, str | tuple[str, str]]
+            | t.Iterable[tuple[str, str | tuple[str, str]]]
+        ),
         disallow: None = None,
         cache: bool = True,
         cache_timeout: int = 60 * 60 * 12,
         fallback_mimetype: str = "application/octet-stream",
     ) -> None:
+
         self.org_exports = exports.copy()
         super().__init__(app, exports, disallow, cache, cache_timeout,
                          fallback_mimetype)
 
-    def __call__(self, environ, start_response):
+    def __call__(
+        self, environ: WSGIEnvironment, start_response: StartResponse
+    ) -> t.Iterable[bytes]:
         path = get_path_info(environ)
         file_loader = None
 

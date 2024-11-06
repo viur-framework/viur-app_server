@@ -99,45 +99,85 @@ def main():
     start gunicorn
     start wrapping app
     """
-    ap = argparse.ArgumentParser(
+    argument_parser = argparse.ArgumentParser(
         description="alternative dev_appserver",
         epilog=f"Version: {__version__}"
     )
 
-    ap.add_argument("distribution_folder", help="Path of the application")
-    ap.add_argument("--appyaml", default="app.yaml",
-                    help="Path to app.yaml file (relative to the distribution_folder)")
-    ap.add_argument(
-        '-A', '--application', action='store', dest='app_id', required=True,
-        help='Set the application id')
-    ap.add_argument('--host', default="localhost",
-                    help='host name to which application modules should bind')
-    ap.add_argument('--entrypoint', type=str, default=None,
-                    help='The entrypoint is the basic gunicorn command. By default, it\'s taken from app.yaml. '
-                         'This parameter can be used to set a different entrypoint. '
-                         'To provide this parameter via ViUR-CLI, you have to double quote it: '
-                         ' --entrypoint "\'gunicorn -b :$PORT --disable-redirect-access-to-syslog main:app\'"')
-    ap.add_argument('--port', type=int, default=8080,
-                    help='port to which we bind the application')
-    ap.add_argument('--gunicorn_port', type=int, default=8090,
-                    help='internal gunicorn port')
-    ap.add_argument('--workers', '--worker', type=int, default=1,
-                    help='amount of gunicorn workers')
-    ap.add_argument('--threads', type=int, default=5,
-                    help='amount of gunicorn threads')
-    ap.add_argument('--timeout', type=int, default=60,
-                    help='Time is seconds before gunicorn abort a request')
-    ap.add_argument('-V', '--version', action='version',
-                    version=f'%(prog)s {__version__}')
+    argument_parser.add_argument(
+        "distribution_folder",
+        help="Path of the application"
+    )
+    argument_parser.add_argument(
+        "--appyaml",
+        default="app.yaml",
+        help="Path to app.yaml file (relative to the distribution_folder)"
+    )
+    argument_parser.add_argument(
+        '-A', '--application',
+        action='store',
+        dest='app_id',
+        required=True,
+        help='Set the application id'
+    )
+    argument_parser.add_argument(
+        '--host',
+        default="localhost",
+        help='host name to which application modules should bind'
+    )
+    argument_parser.add_argument(
+        '--entrypoint',
+        type=str,
+        default=None,
+        help='The entrypoint is the basic gunicorn command. By default, it\'s taken from app.yaml. '
+             'This parameter can be used to set a different entrypoint. '
+             'To provide this parameter via ViUR-CLI, you have to double quote it: '
+             ' --entrypoint "\'gunicorn -b :$PORT --disable-redirect-access-to-syslog main:app\'"'
+    )
+    argument_parser.add_argument(
+        '--port',
+        type=int,
+        default=8080,
+        help='port to which we bind the application'
+    )
+    argument_parser.add_argument(
+        '--gunicorn_port',
+        type=int,
+        default=8090,
+        help='internal gunicorn port'
+    )
+    argument_parser.add_argument(
+        '--workers', '--worker',
+        type=int,
+        default=1,
+        help='amount of gunicorn workers'
+    )
+    argument_parser.add_argument(
+        '--threads',
+        type=int,
+        default=5,
+        help='amount of gunicorn threads'
+    )
+    argument_parser.add_argument(
+        '--timeout',
+        type=int,
+        default=60,
+        help='Time is seconds before gunicorn abort a request'
+    )
+    argument_parser.add_argument(
+        '-V', '--version',
+        action='version',
+        version=f'%(prog)s {__version__}'
+    )
 
-    ap.add_argument(
+    argument_parser.add_argument(
         '--env_var', metavar="KEY=VALUE", nargs="*",
         help="Set environment variable for the runtime. Each env_var is in "
              "the format of KEY=VALUE, and you can define multiple "
              "environment variables. You can also define them in app.yaml."
     )
 
-    args = ap.parse_args()
+    args = argument_parser.parse_args()
 
     app_folder = Path(args.distribution_folder)
 
@@ -154,7 +194,6 @@ def main():
 
     if os.environ.get("WERKZEUG_RUN_MAIN"):
         # only start subprocesses wenn reloader starts
-
         start_gunicorn(args, app_yaml, app_folder)
 
     start_server(args.host, args.port, args.gunicorn_port, app_folder, app_yaml,

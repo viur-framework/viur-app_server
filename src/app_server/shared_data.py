@@ -1,6 +1,6 @@
 import re
 import time
-
+import mimetypes
 from werkzeug.http import http_date, is_resource_modified
 from werkzeug.middleware.shared_data import SharedDataMiddleware
 from werkzeug.utils import get_content_type

@@ -73,7 +73,7 @@ class MainWSGIRequestHandler(WSGIRequestHandler):
 
         self.log(log_type, '[%s] %s', code, msg)
 
-    def log(self, type: str, message: str, *args) -> None:
+    def log(self, log_type: str, message: str, *args) -> None:
         global _logger
 
         if _logger is None:
@@ -81,8 +81,7 @@ class MainWSGIRequestHandler(WSGIRequestHandler):
             _logger.setLevel(logging.INFO)
             _logger.addHandler(logging.StreamHandler())
 
-        getattr(_logger, type)(
-            f"[{self.log_date_time_string()}] {message % args}")
+        getattr(_logger, log_type)(f"[{self.log_date_time_string()}] {message % args}")
 
 
 class WrappingApp:
@@ -236,7 +235,7 @@ def start_server(
     host: str,
     port: int,
     gunicorn_port: int,
-    app_folder: str,
+    app_folder: Path,
     app_yaml: dict,
     timeout: int,
     protocol: str = "http",
@@ -289,13 +288,6 @@ def set_env_vars(application_id: str, args: argparse.Namespace, app_yaml: dict):
     os.environ["GAE_VERSION"] = str(time.time())
     os.environ["GRPC_ENABLE_FORK_SUPPORT"] = "0"
 
-    if args.storage:
-        os.environ["STORAGE_EMULATOR_HOST"] = \
-            f"http://{args.host}:{args.storage_port}"
-
-    if args.tasks:
-        os.environ["TASKS_EMULATOR"] = f"{args.host}:{args.tasks_port}"
-
     # Merge environment variables from CLI parameter
     if args.env_var:
         os.environ |= dict(v.split("=", 1) for v in args.env_var)
@@ -319,13 +311,13 @@ def patch_gunicorn():
 def start_gunicorn(
     args: argparse.Namespace,
     app_yaml: dict,
-    app_folder: str,
+    app_folder: Path,
 ) -> None:
     # Gunicorn call command
     if not (entrypoint := args.entrypoint):
         entrypoint = app_yaml.get(
             "entrypoint",
-            "gunicorn -b :$PORT --disable-redirect-access-to-syslog main:app"
+            f"gunicorn -b :$PORT --disable-redirect-access-to-syslog main:app"
         )
     entrypoint = entrypoint.replace(f"$PORT", str(args.gunicorn_port))
     # Remove -w / --workers / --threads arguments,
@@ -383,20 +375,7 @@ def main():
     ap.add_argument('--timeout', type=int, default=60,
                     help='Time is seconds before gunicorn abort a request')
     ap.add_argument('-V', '--version', action='version',
-                    version='%(prog)s ' + __version__)
-
-    ap.add_argument('--storage', default=False, action="store_true",
-                    dest="storage", help="also start Storage Emulator")
-    ap.add_argument('--storage_port', type=int, default=8092,
-                    help='internal Storage Emulator Port')
-
-    ap.add_argument('--tasks', default=False, action='store_true', dest="tasks",
-                    help='also start Task-Queue Emulator')
-    ap.add_argument('--tasks_port', type=int, default=8091,
-                    help='internal Task-Queue Emulator Port')
-
-    ap.add_argument('--cron', default=False, action='store_true', dest="cron",
-                    help='also start Cron Emulator')
+                    version=f'%(prog)s {__version__}' )
 
     ap.add_argument(
         '--env_var', metavar="KEY=VALUE", nargs="*",
@@ -424,25 +403,6 @@ def main():
     if "WERKZEUG_RUN_MAIN" in os.environ and os.environ["WERKZEUG_RUN_MAIN"]:
         # only start subprocesses wenn reloader starts
 
-        if args.storage:
-            storage_subprocess = subprocess.Popen(
-                f"gcloud-storage-emulator start --port={args.storage_port}"
-                f" --default-bucket={args.app_id}.appspot.com".split())
-
-            subprocesses.append(storage_subprocess)
-
-        if args.tasks and os.path.exists(
-            os.path.join(app_folder, 'queue.yaml')):
-            cron = ""
-            if args.cron:
-                cron = f"--cron-yaml={os.path.join(app_folder, 'cron.yaml')}"
-
-            tasks_subprocess = subprocess.Popen(
-                f"gcloud-tasks-emulator start -p={args.tasks_port} -t={args.port} {cron}"
-                f" --queue-yaml={os.path.join(app_folder, 'queue.yaml')}"
-                f" --queue-yaml-project={args.app_id} --queue-yaml-location=local -r 50".split())
-
-            subprocesses.append(tasks_subprocess)
 
         start_gunicorn(args, app_yaml, app_folder)
 

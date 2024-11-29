@@ -1,8 +1,15 @@
 # Changelog
 
 This file documents any relevant changes.
+## [1.0.0] - 2024-11-29
+- feat: V1.0 #9
+- feat: Add Types
+- feat: Remove Task Emulator
+- feat: Remove Storage Emulator
+- feat: Update Requirments
+
 ## [0.9.11] - 2024-10-30
-feat: Allow different named app.yamls #8
+- feat: Allow different named app.yamls #8
 
 ## [0.9.10] - 2024-05-06
 - fix: Improve and refactor entrypoint to make --workers and --threads argument working #7

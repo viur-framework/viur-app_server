@@ -1,6 +1,9 @@
 # Changelog
 
 This file documents any relevant changes.
+## [1.0.1] - 2024-11-29
+- fix: Set get_path_info for werkzeug >= 3.0
+
 ## [1.0.0] - 2024-11-29
 - feat: V1.0 #9
 - feat: Add Types

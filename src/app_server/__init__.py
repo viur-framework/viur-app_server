@@ -16,7 +16,7 @@ from .proxy import Proxy
 from .request_handler import CustomWSGIRequestHandler
 from .shared_data import SharedData
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 subprocesses = []
 

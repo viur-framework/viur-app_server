@@ -31,7 +31,11 @@ class Proxy(ProxyMiddleware):
     def __call__(
         self, environ: WSGIEnvironment, start_response: StartResponse
     ) -> t.Iterable[bytes]:
-        path = get_path_info(environ)
+
+        # Overide Pathinfo because werkzueg not unquote the path correct
+        # https://github.com/pallets/werkzeug/blob/7868bef5d978093a8baa0784464ebe5d775ae92a/src/werkzeug/serving.py#L179-L208
+
+        path = environ["PATH_INFO"] = environ["REQUEST_URI"]
         app = self.app
         for prefix, opts in self.targets.items():
             if path.startswith(prefix):

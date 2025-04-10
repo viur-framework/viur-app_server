@@ -1,9 +1,7 @@
 import typing as t
+import urllib
 from wsgiref.types import StartResponse, WSGIApplication, WSGIEnvironment
-
 from werkzeug.middleware.http_proxy import ProxyMiddleware
-from werkzeug.wsgi import get_path_info
-
 
 class Proxy(ProxyMiddleware):
     """this addition allows to redirect all routes to given targets"""
@@ -34,8 +32,8 @@ class Proxy(ProxyMiddleware):
 
         # Overide Pathinfo because werkzueg not unquote the path correct
         # https://github.com/pallets/werkzeug/blob/7868bef5d978093a8baa0784464ebe5d775ae92a/src/werkzeug/serving.py#L179-L208
-
-        path = environ["PATH_INFO"] = environ["REQUEST_URI"]
+        path =  environ["REQUEST_URI"]
+        path = urllib.parse.urlparse(path).path
         app = self.app
         for prefix, opts in self.targets.items():
             if path.startswith(prefix):

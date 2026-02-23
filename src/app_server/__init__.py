@@ -12,6 +12,7 @@ from werkzeug.serving import run_simple
 from . import utils
 from .app_wrapper import AppWrapper
 from .dispatcher import Dispatcher
+from .forward_proxy import ForwardProxy
 from .proxy import Proxy
 from .request_handler import CustomWSGIRequestHandler
 from .shared_data import SharedData
@@ -29,6 +30,7 @@ def start_server(
     app_yaml: dict,
     timeout: int,
     protocol: str = "http",
+    forward_rules: list[tuple[str, str]] | None = None,
 ) -> None:
     """use the dispatcherMiddleware to connect SharedDataMiddleware and ProxyMiddleware with the wrapping app."""
     app = AppWrapper()
@@ -48,6 +50,10 @@ def start_server(
         apps[pattern] = SharedData(
             app.wsgi_app, {route["url"]: os.path.join(app_folder, path)}
         )
+
+    # Register forward proxy rules (before the gunicorn proxy)
+    for pattern, target_url in forward_rules or []:
+        apps[pattern] = ForwardProxy(app.wsgi_app, target_url)
 
     apps["/"] = Proxy(
         app.wsgi_app,
@@ -181,6 +187,13 @@ def main():
              "environment variables. You can also define them in app.yaml."
     )
 
+    argument_parser.add_argument(
+        '--forward', metavar="PATTERN=URL", action="append", default=[],
+        help="Forward requests matching PATTERN (regex) to an external URL. "
+             "Can be specified multiple times. "
+             "Example: --forward '/file/.*=https://my-app.appspot.com'"
+    )
+
     args = argument_parser.parse_args()
 
     app_folder = Path(args.distribution_folder)
@@ -196,12 +209,20 @@ def main():
     app_runtime = app_yaml["runtime"]
     assert app_runtime == current_runtime, f"app.yaml specifies {app_runtime} but you're on {current_runtime}, please correct this."
 
+    # Parse --forward rules
+    forward_rules = []
+    for rule in args.forward:
+        if "=" not in rule:
+            argument_parser.error(f"Invalid --forward format: {rule!r} (expected PATTERN=URL)")
+        pattern, url = rule.split("=", 1)
+        forward_rules.append((pattern, url))
+
     if os.environ.get("WERKZEUG_RUN_MAIN"):
         # only start subprocesses wenn reloader starts
         start_gunicorn(args, app_yaml, app_folder)
 
     start_server(args.host, args.port, args.gunicorn_port, app_folder, app_yaml,
-                 args.timeout)
+                 args.timeout, forward_rules=forward_rules)
 
     try:
         for process in subprocesses:

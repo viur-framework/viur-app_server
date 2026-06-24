@@ -1,6 +1,12 @@
 # Changelog
 
 This file documents any relevant changes.
+## [1.0.3] - 2026-06-24
+- fix: Loosen `gunicorn` requirement to `>=23,<27` #12
+
+## [1.0.2] - 2025-06-26
+- feat: Retrieve path from `REQUEST_URI` #10
+
 ## [1.0.1] - 2024-11-29
 - fix: Set get_path_info for werkzeug >= 3.0
 

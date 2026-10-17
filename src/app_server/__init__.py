@@ -1,6 +1,7 @@
 import argparse
 import os
 import re
+import signal
 import subprocess
 import sys
 from pathlib import Path
@@ -93,6 +94,29 @@ def start_gunicorn(
     entrypoint.extend(["--timeout", str(args.timeout)])
 
     subprocesses.append(subprocess.Popen(entrypoint, cwd=app_folder))
+
+
+def stop_subprocesses(timeout: float = 5) -> None:
+    """Stop the started subprocesses and wait until they have exited.
+
+    SIGINT triggers gunicorn's quick shutdown. A graceful SIGTERM would wait for
+    running requests, although the proxy holding the client connection exits anyway.
+    A worker busy with a request still delays the quick shutdown up to gunicorn's
+    graceful timeout, so the master gets killed after `timeout`. Its worker then
+    stops accepting connections and exits after the request, at the latest after
+    the graceful timeout.
+
+    :param timeout: Seconds to wait for a process to exit before killing it.
+    """
+    for process in subprocesses:
+        process.send_signal(signal.SIGINT)
+    for process in subprocesses:
+        try:
+            process.wait(timeout)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
+    subprocesses.clear()
 
 
 def main():
@@ -200,14 +224,14 @@ def main():
         # only start subprocesses wenn reloader starts
         start_gunicorn(args, app_yaml, app_folder)
 
-    start_server(args.host, args.port, args.gunicorn_port, app_folder, app_yaml,
-                 args.timeout)
-
+    # The werkzeug reloader leaves start_server() with SystemExit on every code change,
+    # so the cleanup must run in `finally`. Otherwise, each reload orphans a gunicorn
+    # master that keeps serving the old code on the shared --reuse-port socket.
     try:
-        for process in subprocesses:
-            process.kill()
-    except:
-        pass
+        start_server(args.host, args.port, args.gunicorn_port, app_folder, app_yaml,
+                     args.timeout)
+    finally:
+        stop_subprocesses()
 
 
 if __name__ == '__main__':

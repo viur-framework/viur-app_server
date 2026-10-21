@@ -1,6 +1,9 @@
 # Changelog
 
 This file documents any relevant changes.
+## [1.0.4] - 2026-10-21
+- fix: Stop orphaned gunicorn masters on reload #13
+
 ## [1.0.3] - 2026-06-24
 - fix: Loosen `gunicorn` requirement to `>=23,<27` #12
 

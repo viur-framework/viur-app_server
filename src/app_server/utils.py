@@ -5,13 +5,15 @@ import time
 
 def patch_gunicorn():
     import gunicorn.workers.base
-    with open(gunicorn.workers.base.__file__, 'r+') as file:
+    # Open for writing only if the patch is missing: closing a file opened with "r+" is a
+    # change event for the reloader of every other app_server running on the same environment.
+    with open(gunicorn.workers.base.__file__, "r") as file:
         content = file.read()
 
-        if "except (SyntaxError, NameError) as e:" in content:
-            return 0
+    if "except (SyntaxError, NameError) as e:" in content:
+        return 0
 
-        file.seek(0)
+    with open(gunicorn.workers.base.__file__, "w") as file:
         file.write(content.replace(
             '        except SyntaxError as e:',
             '        except (SyntaxError, NameError) as e:'
